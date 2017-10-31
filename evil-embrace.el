@@ -147,6 +147,8 @@
   "Keys that should be processed by `evil-surround'")
 (make-variable-buffer-local 'evil-embrace-evil-surround-keys)
 
+(setq evil-embrace--embrace-help-window nil)
+
 ;; ----------- ;;
 ;; help system ;;
 ;; ----------- ;;
@@ -261,6 +263,21 @@
       (apply orig-func args)
     (embrace--hide-help-buffer)))
 
+(defun evil-embrace--store-help-window (&rest args)
+  "Set internal variable to the window used by embrace--show-help-buffer"
+  (setq evil-embrace--embrace-help-window
+        (if evil-embrace-show-help-p
+            (get-buffer-window embrace--help-buffer)
+          nil))
+  )
+
+(defun evil-embrace--kill-help-window (&rest args)
+  "If the internal window variable is set, delete it"
+  (when (and evil-embrace--embrace-help-window
+             (not (eq (selected-window) evil-embrace--embrace-help-window)))
+    (delete-window evil-embrace--embrace-help-window)
+    (setq evil-embrace--embrace-help-window nil)))
+
 ;;;###autoload
 (defun evil-embrace-enable-evil-surround-integration ()
   (interactive)
@@ -268,7 +285,16 @@
   (advice-add 'evil-surround-change :override 'evil-embrace-evil-surround-change)
   (advice-add 'evil-surround-delete :override 'evil-embrace-evil-surround-delete)
   (advice-add 'evil-surround-edit :around 'evil-embrace-show-help-advice)
-  (advice-add 'evil-Surround-edit :around 'evil-embrace-show-help-advice))
+  (advice-add 'evil-Surround-edit :around 'evil-embrace-show-help-advice)
+
+  ;; KLUDGE: Store help window in a internal variable after calling embrace--show-help-buffer . Kill it after any action of evil surround
+  (advice-add 'embrace--show-help-buffer :after 'evil-embrace--store-help-window)
+  (advice-add 'evil-surround-region :after 'evil-embrace--kill-help-window)
+  (advice-add 'evil-surround-change :after 'evil-embrace--kill-help-window)
+  (advice-add 'evil-surround-delete :after 'evil-embrace--kill-help-window)
+  (advice-add 'evil-surround-edit :after 'evil-embrace--kill-help-window)
+  (advice-add 'evil-Surround-edit :after 'evil-embrace--kill-help-window)
+  )
 
 ;;;###autoload
 (defun evil-embrace-disable-evil-surround-integration ()
@@ -277,7 +303,15 @@
   (advice-remove 'evil-surround-change 'evil-embrace-evil-surround-change)
   (advice-remove 'evil-surround-delete 'evil-embrace-evil-surround-delete)
   (advice-remove 'evil-surround-edit 'evil-embrace-show-help-advice)
-  (advice-remove 'evil-Surround-edit 'evil-embrace-show-help-advice))
+  (advice-remove 'evil-Surround-edit 'evil-embrace-show-help-advice)
+
+  (advice-remove 'embrace--show-help-buffer 'evil-embrace--store-help-window)
+  (advice-remove 'evil-surround-region 'evil-embrace--kill-help-window)
+  (advice-remove 'evil-surround-change 'evil-embrace--kill-help-window)
+  (advice-remove 'evil-surround-delete 'evil-embrace--kill-help-window)
+  (advice-remove 'evil-surround-edit 'evil-embrace--kill-help-window)
+  (advice-remove 'evil-Surround-edit 'evil-embrace--kill-help-window)
+)
 
 (provide 'evil-embrace)
 ;;; evil-embrace.el ends here
